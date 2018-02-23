@@ -1,2 +1,2 @@
 # router-connector-elasticsearch
-SCVO->Router Connector for Elasticsearch
+SCVO=*>Router Connector for Elasticsearch
