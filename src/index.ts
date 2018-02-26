@@ -7,7 +7,6 @@ export class RouterTask implements IRouterTask {
     name: string = "elasticsearch";
 
     constructor(handlebarsHelpers: IHandlebarsHelpers) {
-        console.log('#### ELASTICSEARCH.constructor() -> New instance of elasticsearch task');
         Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach((name) => {
             hbs.registerHelper(name, handlebarsHelpers[name]);
@@ -15,7 +14,6 @@ export class RouterTask implements IRouterTask {
     }
 
     public async execute(config: IElasticsearchConfig, routeMatch: IRouteMatch): Promise<any> {
-        console.log('#### ELASTICSEARCH.execute() -> We\'re running!');
         var data = {};
 
         var connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
@@ -45,6 +43,7 @@ export class RouterTask implements IRouterTask {
         };
         console.log('#### ELASTICSEARCH.singleQuery() -> Query:', JSON.stringify(payload, null, 4));
         var response: ISearchResponse<any> = await client.search<any>(payload);
+        console.log('#### ELASTICSEARCH.singleQuery() -> Response:', JSON.stringify(response, null, 4));
 
         return response;
     }
@@ -74,7 +73,9 @@ export class RouterTask implements IRouterTask {
             body: bulk          
         };
 
+        console.log('#### ELASTICSEARCH.multiQuery() -> Query:', JSON.stringify(payload, null, 4));
         var multiResponse: MSearchResponse<any> = await client.msearch(payload);
+        console.log('#### ELASTICSEARCH.multiQuery() -> Response:', JSON.stringify(multiResponse, null, 4));
         var responseMap: ISearchResponses<any> = {};
 
         multiResponse.responses.forEach((response: ISearchResponse<any>, i: number) => {
