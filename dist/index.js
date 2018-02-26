@@ -41,6 +41,7 @@ var scvo_router_1 = require("scvo-router");
 var RouterTask = /** @class */ (function () {
     function RouterTask(handlebarsHelpers) {
         this.name = "elasticsearch";
+        console.log('#### ELASTICSEARCH.constructor() -> New instance of elasticsearch task');
         scvo_router_1.Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach(function (name) {
             hbs.registerHelper(name, handlebarsHelpers[name]);
@@ -50,6 +51,7 @@ var RouterTask = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var data, connectionStringCompiled, connectionString, client;
             return __generator(this, function (_a) {
+                console.log('#### ELASTICSEARCH.execute() -> We\'re running!');
                 data = {};
                 connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
                 connectionString = connectionStringCompiled(routeMatch);
@@ -81,6 +83,7 @@ var RouterTask = /** @class */ (function () {
                             type: queryTemplate.type,
                             body: query
                         };
+                        console.log('#### ELASTICSEARCH.singleQuery() -> Query:', JSON.stringify(payload, null, 4));
                         return [4 /*yield*/, client.search(payload)];
                     case 1:
                         response = _a.sent();

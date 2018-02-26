@@ -7,13 +7,15 @@ export class RouterTask implements IRouterTask {
     name: string = "elasticsearch";
 
     constructor(handlebarsHelpers: IHandlebarsHelpers) {
+        console.log('#### ELASTICSEARCH.constructor() -> New instance of elasticsearch task');
         Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach((name) => {
             hbs.registerHelper(name, handlebarsHelpers[name]);
         });
     }
 
-    async execute(config: IElasticsearchConfig, routeMatch: IRouteMatch): Promise<any> {
+    public async execute(config: IElasticsearchConfig, routeMatch: IRouteMatch): Promise<any> {
+        console.log('#### ELASTICSEARCH.execute() -> We\'re running!');
         var data = {};
 
         var connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
@@ -41,7 +43,7 @@ export class RouterTask implements IRouterTask {
             type: queryTemplate.type,
             body: query
         };
-
+        console.log('#### ELASTICSEARCH.singleQuery() -> Query:', JSON.stringify(payload, null, 4));
         var response: ISearchResponse<any> = await client.search<any>(payload);
 
         return response;
