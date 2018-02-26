@@ -13,15 +13,18 @@ export class RouterTask implements IRouterTask {
         });
     }
 
-    public async execute(config: IElasticsearchConfig, routeMatch: IRouteMatch): Promise<any> {
+    public async execute(config: IElasticsearchTaskConfig, routeMatch: IRouteMatch): Promise<any> {
         var data = {};
 
         var connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
         var connectionString = connectionStringCompiled(routeMatch);   
-        var client = new Client({
+        var configOptions: ConfigOptions = {
             host: connectionString,
-            apiVersion: config.apiVersion          
-        });
+            apiVersion: '5.6'
+        };
+        Object.assign(configOptions, config.elasticsearchConfig || { });
+
+        var client = new Client(configOptions);
 
         if (Array.isArray(config.queryTemplates)) {
             data = this.multiQuery(client, config.queryTemplates, routeMatch); 
@@ -41,9 +44,10 @@ export class RouterTask implements IRouterTask {
             type: queryTemplate.type,
             body: query
         };
-        console.log('#### ELASTICSEARCH.singleQuery() -> Query:', JSON.stringify(payload, null, 4));
+
         var response: ISearchResponse<any> = await client.search<any>(payload);
-        console.log('#### ELASTICSEARCH.singleQuery() -> Response:', JSON.stringify(response, null, 4));
+        var pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
+        response.pagination = pagination;
 
         return response;
     }
@@ -65,17 +69,17 @@ export class RouterTask implements IRouterTask {
             };
             bulk.push(head);
             bulk.push(body); 
-            queryTemplate.paginationDetails.from = body.from;
-            queryTemplate.paginationDetails.size = body.size;
+            queryTemplate.paginationDetails = {
+                from: body.from,
+                size: body.size
+            };
         });
 
         var payload: MSearchParams = {
             body: bulk          
         };
 
-        console.log('#### ELASTICSEARCH.multiQuery() -> Query:', JSON.stringify(payload, null, 4));
         var multiResponse: MSearchResponse<any> = await client.msearch(payload);
-        console.log('#### ELASTICSEARCH.multiQuery() -> Response:', JSON.stringify(multiResponse, null, 4));
         var responseMap: ISearchResponses<any> = {};
 
         multiResponse.responses.forEach((response: ISearchResponse<any>, i: number) => {
@@ -142,9 +146,9 @@ export class RouterTask implements IRouterTask {
     }
 }
 
-export interface IElasticsearchConfig {
+export interface IElasticsearchTaskConfig {
     connectionStringTemplate: string;
-    apiVersion: string;
+    elasticsearchConfig: ConfigOptions;
     queryTemplates: IElasticsearchQueryTemplate[] | IElasticsearchQueryTemplate;
 }
 

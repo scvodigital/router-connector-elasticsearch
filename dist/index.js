@@ -41,7 +41,6 @@ var scvo_router_1 = require("scvo-router");
 var RouterTask = /** @class */ (function () {
     function RouterTask(handlebarsHelpers) {
         this.name = "elasticsearch";
-        console.log('#### ELASTICSEARCH.constructor() -> New instance of elasticsearch task');
         scvo_router_1.Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach(function (name) {
             hbs.registerHelper(name, handlebarsHelpers[name]);
@@ -49,16 +48,17 @@ var RouterTask = /** @class */ (function () {
     }
     RouterTask.prototype.execute = function (config, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
-            var data, connectionStringCompiled, connectionString, client;
+            var data, connectionStringCompiled, connectionString, configOptions, client;
             return __generator(this, function (_a) {
-                console.log('#### ELASTICSEARCH.execute() -> We\'re running!');
                 data = {};
                 connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
                 connectionString = connectionStringCompiled(routeMatch);
-                client = new elasticsearch_1.Client({
+                configOptions = {
                     host: connectionString,
-                    apiVersion: config.apiVersion
-                });
+                    apiVersion: '5.6'
+                };
+                Object.assign(configOptions, config.elasticsearchConfig || {});
+                client = new elasticsearch_1.Client(configOptions);
                 if (Array.isArray(config.queryTemplates)) {
                     data = this.multiQuery(client, config.queryTemplates, routeMatch);
                 }
@@ -71,7 +71,7 @@ var RouterTask = /** @class */ (function () {
     };
     RouterTask.prototype.singleQuery = function (client, queryTemplate, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
-            var queryCompiled, queryJson, query, payload, response;
+            var queryCompiled, queryJson, query, payload, response, pagination;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -83,10 +83,11 @@ var RouterTask = /** @class */ (function () {
                             type: queryTemplate.type,
                             body: query
                         };
-                        console.log('#### ELASTICSEARCH.singleQuery() -> Query:', JSON.stringify(payload, null, 4));
                         return [4 /*yield*/, client.search(payload)];
                     case 1:
                         response = _a.sent();
+                        pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
+                        response.pagination = pagination;
                         return [2 /*return*/, response];
                 }
             });
@@ -114,8 +115,10 @@ var RouterTask = /** @class */ (function () {
                             };
                             bulk.push(head);
                             bulk.push(body);
-                            queryTemplate.paginationDetails.from = body.from;
-                            queryTemplate.paginationDetails.size = body.size;
+                            queryTemplate.paginationDetails = {
+                                from: body.from,
+                                size: body.size
+                            };
                         });
                         payload = {
                             body: bulk
