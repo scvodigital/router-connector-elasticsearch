@@ -1,14 +1,17 @@
 {
-  "name": "router-connector-elasticsearch",
+  "name": "router-task-elasticsearch",
   "version": "0.0.1",
-  "description": "SCVO=>Router Connector for Elasticsearch",
+  "description": "SCVO=>Router task for Elasticsearch",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cleanup": "rm -rf ./dist",
+    "build": "npm run cleanup;tsc",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scvodigital/router-connector-elasticsearch.git"
+    "url": "git+https://github.com/scvodigital/router-task-elasticsearch.git"
   },
   "keywords": [
     "SCVO=>Router",
@@ -20,20 +23,22 @@
   "author": "Matthew Wilkes (SCVO)",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/scvodigital/router-connector-elasticsearch/issues"
+    "url": "https://github.com/scvodigital/router-task-elasticsearch/issues"
   },
-  "homepage": "https://github.com/scvodigital/router-connector-elasticsearch#readme",
+  "homepage": "https://github.com/scvodigital/router-task-elasticsearch#readme",
   "dependencies": {
     "clayhandlebars": "^4.0.0",
     "dot-object": "^1.7.0",
     "elasticsearch": "^14.1.0",
     "moment": "^2.20.1",
+    "scvo-router": "^1.0.69",
     "string": "^3.3.3"
   },
   "devDependencies": {
     "@types/dot-object": "^1.5.0",
     "@types/elasticsearch": "^5.0.19",
     "@types/moment": "^2.13.0",
+    "@types/node": "^9.4.6",
     "@types/string": "^0.0.29"
   }
 }
