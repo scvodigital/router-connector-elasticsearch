@@ -1,6 +1,6 @@
 {
   "name": "@scvo/router-task-elasticsearch",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "SCVO=>Router task for Elasticsearch",
   "main": "dist/index.js",
   "scripts": {
