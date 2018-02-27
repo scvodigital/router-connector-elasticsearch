@@ -1,7 +1,7 @@
 import { Client, MSearchParams, SearchResponse, MSearchResponse, ConfigOptions } from 'elasticsearch';
 const hbs = require('clayhandlebars')();
 
-import { IRouterTask, IRouteMatch, Helpers } from 'scvo-router';
+import { IRouterTask, IRouteMatch, Helpers } from '@scvo/router';
 
 export class RouterTask implements IRouterTask {
     name: string = "elasticsearch";
