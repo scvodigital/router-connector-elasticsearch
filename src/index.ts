@@ -3,7 +3,7 @@ const hbs = require('clayhandlebars')();
 
 import { IRouterTask, IRouteMatch, Helpers } from '@scvo/router';
 
-export class RouterTask implements IRouterTask {
+export class ElasticsearchRouterTask implements IRouterTask {
     name: string = "elasticsearch";
 
     constructor(handlebarsHelpers: IHandlebarsHelpers) {
@@ -13,7 +13,7 @@ export class RouterTask implements IRouterTask {
         });
     }
 
-    public async execute(config: IElasticsearchTaskConfig, routeMatch: IRouteMatch): Promise<any> {
+    public async execute(routeMatch: IRouteMatch, config: IElasticsearchTaskConfig): Promise<any> {
         var data = {};
 
         var connectionStringCompiled = hbs.compile(config.connectionStringTemplate);

@@ -1,13 +1,14 @@
 {
   "name": "@scvo/router-task-elasticsearch",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "SCVO=>Router task for Elasticsearch",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "cleanup": "rm -rf ./dist",
     "build": "npm run cleanup;tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "local": "npm link @scvo/router; npm run build; npm link"
   },
   "repository": {
     "type": "git",
@@ -27,11 +28,11 @@
   },
   "homepage": "https://github.com/scvodigital/router-task-elasticsearch#readme",
   "dependencies": {
+    "@scvo/router": "1.1.1",
     "clayhandlebars": "^4.0.0",
     "dot-object": "^1.7.0",
     "elasticsearch": "^14.1.0",
     "moment": "^2.20.1",
-    "@scvo/router": "^1.1.0",
     "string": "^3.3.3"
   },
   "devDependencies": {

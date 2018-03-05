@@ -1,9 +1,9 @@
 import { Client, SearchResponse, ConfigOptions } from 'elasticsearch';
-import { IRouterTask, IRouteMatch } from 'scvo-router';
-export declare class RouterTask implements IRouterTask {
+import { IRouterTask, IRouteMatch } from '@scvo/router';
+export declare class ElasticsearchRouterTask implements IRouterTask {
     name: string;
     constructor(handlebarsHelpers: IHandlebarsHelpers);
-    execute(config: IElasticsearchTaskConfig, routeMatch: IRouteMatch): Promise<any>;
+    execute(routeMatch: IRouteMatch, config: IElasticsearchTaskConfig): Promise<any>;
     singleQuery(client: Client, queryTemplate: IElasticsearchQueryTemplate, routeMatch: IRouteMatch): Promise<ISearchResponse<any>>;
     multiQuery(client: Client, queryTemplates: IElasticsearchQueryTemplate[], routeMatch: IRouteMatch): Promise<ISearchResponses<any>>;
     getPagination(from?: number, size?: number, totalResults?: number): IPagination;

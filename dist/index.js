@@ -37,16 +37,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var elasticsearch_1 = require("elasticsearch");
 var hbs = require('clayhandlebars')();
-var scvo_router_1 = require("scvo-router");
-var RouterTask = /** @class */ (function () {
-    function RouterTask(handlebarsHelpers) {
+var router_1 = require("@scvo/router");
+var ElasticsearchRouterTask = /** @class */ (function () {
+    function ElasticsearchRouterTask(handlebarsHelpers) {
         this.name = "elasticsearch";
-        scvo_router_1.Helpers.register(hbs);
+        router_1.Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach(function (name) {
             hbs.registerHelper(name, handlebarsHelpers[name]);
         });
     }
-    RouterTask.prototype.execute = function (config, routeMatch) {
+    ElasticsearchRouterTask.prototype.execute = function (routeMatch, config) {
         return __awaiter(this, void 0, void 0, function () {
             var data, connectionStringCompiled, connectionString, configOptions, client;
             return __generator(this, function (_a) {
@@ -69,7 +69,7 @@ var RouterTask = /** @class */ (function () {
             });
         });
     };
-    RouterTask.prototype.singleQuery = function (client, queryTemplate, routeMatch) {
+    ElasticsearchRouterTask.prototype.singleQuery = function (client, queryTemplate, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
             var queryCompiled, queryJson, query, payload, response, pagination;
             return __generator(this, function (_a) {
@@ -93,7 +93,7 @@ var RouterTask = /** @class */ (function () {
             });
         });
     };
-    RouterTask.prototype.multiQuery = function (client, queryTemplates, routeMatch) {
+    ElasticsearchRouterTask.prototype.multiQuery = function (client, queryTemplates, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             var bulk, payload, multiResponse, responseMap;
@@ -139,7 +139,7 @@ var RouterTask = /** @class */ (function () {
             });
         });
     };
-    RouterTask.prototype.getPagination = function (from, size, totalResults) {
+    ElasticsearchRouterTask.prototype.getPagination = function (from, size, totalResults) {
         if (from === void 0) { from = 0; }
         if (size === void 0) { size = 10; }
         if (totalResults === void 0) { totalResults = 0; }
@@ -179,7 +179,7 @@ var RouterTask = /** @class */ (function () {
         };
         return pagination;
     };
-    return RouterTask;
+    return ElasticsearchRouterTask;
 }());
-exports.RouterTask = RouterTask;
+exports.ElasticsearchRouterTask = ElasticsearchRouterTask;
 //# sourceMappingURL=index.js.map
