@@ -25,6 +25,7 @@ export interface IHandlebarsHelpers {
 }
 export interface ISearchResponse<T> extends SearchResponse<T> {
     pagination?: IPagination;
+    request?: any;
 }
 export interface ISearchResponses<T> {
     [name: string]: ISearchResponse<T>;

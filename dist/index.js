@@ -50,22 +50,28 @@ var ElasticsearchRouterTask = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var data, connectionStringCompiled, connectionString, configOptions, client;
             return __generator(this, function (_a) {
-                data = {};
-                connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
-                connectionString = connectionStringCompiled(routeMatch);
-                configOptions = {
-                    host: connectionString,
-                    apiVersion: '5.6'
-                };
-                Object.assign(configOptions, config.elasticsearchConfig || {});
-                client = new elasticsearch_1.Client(configOptions);
-                if (Array.isArray(config.queryTemplates)) {
-                    data = this.multiQuery(client, config.queryTemplates, routeMatch);
+                switch (_a.label) {
+                    case 0:
+                        data = {};
+                        connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
+                        connectionString = connectionStringCompiled(routeMatch);
+                        configOptions = {
+                            host: connectionString,
+                            apiVersion: '5.6'
+                        };
+                        Object.assign(configOptions, config.elasticsearchConfig || {});
+                        client = new elasticsearch_1.Client(configOptions);
+                        if (!Array.isArray(config.queryTemplates)) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.multiQuery(client, config.queryTemplates, routeMatch)];
+                    case 1:
+                        data = _a.sent();
+                        return [3 /*break*/, 4];
+                    case 2: return [4 /*yield*/, this.singleQuery(client, config.queryTemplates, routeMatch)];
+                    case 3:
+                        data = _a.sent();
+                        _a.label = 4;
+                    case 4: return [2 /*return*/, data];
                 }
-                else {
-                    data = this.singleQuery(client, config.queryTemplates, routeMatch);
-                }
-                return [2 /*return*/, data];
             });
         });
     };
@@ -88,6 +94,7 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                         response = _a.sent();
                         pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
                         response.pagination = pagination;
+                        response.request = payload;
                         return [2 /*return*/, response];
                 }
             });
@@ -132,6 +139,7 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                             var paginationDetails = queryTemplates[i].paginationDetails;
                             var pagination = _this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
                             response.pagination = pagination;
+                            response.request = bulk[i * 2 + 1];
                             responseMap[name] = response;
                         });
                         return [2 /*return*/, responseMap];

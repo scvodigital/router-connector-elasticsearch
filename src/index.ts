@@ -27,9 +27,9 @@ export class ElasticsearchRouterTask implements IRouterTask {
         var client = new Client(configOptions);
 
         if (Array.isArray(config.queryTemplates)) {
-            data = this.multiQuery(client, config.queryTemplates, routeMatch); 
+            data = await this.multiQuery(client, config.queryTemplates, routeMatch); 
         } else {
-            data = this.singleQuery(client, config.queryTemplates, routeMatch); 
+            data = await this.singleQuery(client, config.queryTemplates, routeMatch); 
         }
 
         return data; 
@@ -48,6 +48,7 @@ export class ElasticsearchRouterTask implements IRouterTask {
         var response: ISearchResponse<any> = await client.search<any>(payload);
         var pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
         response.pagination = pagination;
+        response.request = payload;
 
         return response;
     }
@@ -88,6 +89,7 @@ export class ElasticsearchRouterTask implements IRouterTask {
 
             var pagination = this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
             response.pagination = pagination;
+            response.request = bulk[i*2+1];
 
             responseMap[name] = response;
         });
@@ -166,6 +168,7 @@ export interface IHandlebarsHelpers {
 
 export interface ISearchResponse<T> extends SearchResponse<T> {
     pagination?: IPagination;
+    request?: any;
 }
 
 export interface ISearchResponses<T> {
