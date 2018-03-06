@@ -8,6 +8,12 @@ export declare class ElasticsearchRouterTask implements IRouterTask {
     multiQuery(client: Client, queryTemplates: IElasticsearchQueryTemplate[], routeMatch: IRouteMatch): Promise<ISearchResponses<any>>;
     getPagination(from?: number, size?: number, totalResults?: number): IPagination;
 }
+export declare class ElasticQueryError extends Error {
+    innerError: Error;
+    data: any;
+    message: string;
+    constructor(m: string, innerError: Error, data: any);
+}
 export interface IElasticsearchTaskConfig {
     connectionStringTemplate: string;
     elasticsearchConfig: ConfigOptions;

@@ -36,65 +36,139 @@ export class ElasticsearchRouterTask implements IRouterTask {
     }
 
     async singleQuery(client: Client, queryTemplate: IElasticsearchQueryTemplate, routeMatch: IRouteMatch): Promise<ISearchResponse<any>> {
-        var queryCompiled = hbs.compile(queryTemplate.template);
-        var queryJson = queryCompiled(routeMatch);
-        var query = JSON.parse(queryJson);
-        var payload = {
-            index: queryTemplate.index,
-            type: queryTemplate.type,
-            body: query
-        };
+        try {
+            var queryCompiled, queryJson, query;
+            
+            try {
+                queryCompiled = hbs.compile(queryTemplate.template);
+            } catch(err) {
+                var queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
+                throw queryError;
+            }
 
-        var response: ISearchResponse<any> = await client.search<any>(payload);
-        var pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
-        response.pagination = pagination;
-        response.request = payload;
+            try {
+                queryJson = queryCompiled(routeMatch);
+            } catch(err) {
+                var queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
+                throw queryError;
+            }
 
-        return response;
+            try {
+                query = JSON.parse(queryJson);
+            } catch(err) {
+                var queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
+                throw queryError;
+            }
+            
+            var payload = {
+                index: queryTemplate.index,
+                type: queryTemplate.type,
+                body: query
+            };
+
+            var response: ISearchResponse<any> = null;
+            try {
+                response = await client.search<any>(payload);
+            } catch(err) {
+                var queryError = new ElasticQueryError('Failed to perform search', err, { payload: payload });
+                throw queryError;
+            }
+            var pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
+            response.pagination = pagination;
+            response.request = payload;
+
+            return response;
+        } catch(err) {
+            if (err instanceof ElasticQueryError) {
+                console.error(err);
+                throw err;
+            } else {
+                var queryError = new ElasticQueryError('Someother error in Single Query', err, {});
+                console.error(queryError);
+                throw queryError;
+            }
+        }
     }
 
     async multiQuery(client: Client, queryTemplates: IElasticsearchQueryTemplate[], routeMatch: IRouteMatch): Promise<ISearchResponses<any>> {
-        var bulk = [];
+        try {
+            var bulk = [];
 
-        queryTemplates.forEach((queryTemplate) => {
-            var queryCompiled = hbs.compile(queryTemplate.template);
-            var queryJson = queryCompiled(routeMatch);
-            var body = JSON.parse(queryJson);
-            var head = {
-                index: queryTemplate.index,
-                type: queryTemplate.type
+            queryTemplates.forEach((queryTemplate) => {
+                var queryCompiled, queryJson, body, head;
+                
+                try {
+                    queryCompiled = hbs.compile(queryTemplate.template);
+                } catch(err) {
+                    var queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
+                    throw queryError;
+                }
+
+                try {
+                    queryJson = queryCompiled(routeMatch);
+                } catch(err) {
+                    var queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
+                    throw queryError;
+                }
+
+                try {
+                    body = JSON.parse(queryJson);
+                } catch(err) {
+                    var queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
+                    throw queryError;
+                }
+
+                head = {
+                    index: queryTemplate.index,
+                    type: queryTemplate.type
+                };
+                var paginationDetails: IPaginationDetails = {
+                    from: body.from || 0,
+                    size: body.size || 10
+                };
+                bulk.push(head);
+                bulk.push(body); 
+                queryTemplate.paginationDetails = {
+                    from: body.from,
+                    size: body.size
+                };
+            });
+
+            var payload: MSearchParams = {
+                body: bulk          
             };
-            var paginationDetails: IPaginationDetails = {
-                from: body.from || 0,
-                size: body.size || 10
-            };
-            bulk.push(head);
-            bulk.push(body); 
-            queryTemplate.paginationDetails = {
-                from: body.from,
-                size: body.size
-            };
-        });
 
-        var payload: MSearchParams = {
-            body: bulk          
-        };
+            var multiResponse: MSearchResponse<any> = null;
+            try {
+                multiResponse = await client.msearch(payload);
+            } catch(err) {
+                var queryError = new ElasticQueryError('Failed to perform search', err, { payload: payload });
+                throw queryError;
+            }
+            var responseMap: ISearchResponses<any> = {};
 
-        var multiResponse: MSearchResponse<any> = await client.msearch(payload);
-        var responseMap: ISearchResponses<any> = {};
+            multiResponse.responses.forEach((response: ISearchResponse<any>, i: number) => {
+                var name = queryTemplates[i].name;
+                var paginationDetails = queryTemplates[i].paginationDetails;
 
-        multiResponse.responses.forEach((response: ISearchResponse<any>, i: number) => {
-            var name = queryTemplates[i].name;
-            var paginationDetails = queryTemplates[i].paginationDetails;
+                var pagination = this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
+                response.pagination = pagination;
+                response.request = bulk[i*2+1];
 
-            var pagination = this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
-            response.pagination = pagination;
-            response.request = bulk[i*2+1];
-
-            responseMap[name] = response;
-        });
-        
-        return responseMap;
+                responseMap[name] = response;
+            });
+            
+            return responseMap;
+        } catch(err) {
+            if (err instanceof ElasticQueryError) {
+                console.error(err);
+                throw err;
+            } else {
+                var queryError = new ElasticQueryError('Someother error in Multi Query', err, {});
+                console.error(queryError);
+                throw queryError;
+            }
+        }
     }
 
     getPagination(from: number = 0, size: number = 10, totalResults: number = 0): IPagination {
@@ -145,6 +219,15 @@ export class ElasticsearchRouterTask implements IRouterTask {
         };
 
         return pagination;
+    }
+}
+
+export class ElasticQueryError extends Error {
+    message: string;
+    constructor(m: string, public innerError: Error, public data: any) {
+        super(m);
+        this.message = m;
+        Object.setPrototypeOf(this, ElasticQueryError.prototype);
     }
 }
 
