@@ -1,6 +1,6 @@
 {
   "name": "@scvo/router-task-elasticsearch",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "SCVO=>Router task for Elasticsearch",
   "main": "dist/index.js",
   "scripts": {
@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/scvodigital/router-task-elasticsearch#readme",
   "dependencies": {
-    "@scvo/router": "1.1.4",
+    "@scvo/router": "1.1.5",
     "clayhandlebars": "^4.0.0",
     "dot-object": "^1.7.0",
     "elasticsearch": "^14.1.0",

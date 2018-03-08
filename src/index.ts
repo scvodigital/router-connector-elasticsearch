@@ -1,7 +1,13 @@
-import { Client, MSearchParams, SearchResponse, MSearchResponse, ConfigOptions } from 'elasticsearch';
+import { 
+    Client, MSearchParams, SearchResponse, 
+    MSearchResponse, ConfigOptions 
+} from 'elasticsearch';
 const hbs = require('clayhandlebars')();
 
-import { IRouterTask, IRouteMatch, Helpers } from '@scvo/router';
+import { 
+    IRouterTask, IRouteMatch, Helpers, 
+    RouteTaskError, IRouteTask
+} from '@scvo/router';
 
 export class ElasticsearchRouterTask implements IRouterTask {
     name: string = "elasticsearch";
@@ -13,51 +19,70 @@ export class ElasticsearchRouterTask implements IRouterTask {
         });
     }
 
-    public async execute(routeMatch: IRouteMatch, config: IElasticsearchTaskConfig): Promise<any> {
+    public async execute(routeMatch: IRouteMatch, task: IRouteTask<IElasticsearchTaskConfig>): Promise<any> {
         var data = {};
 
-        var connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
+        var connectionStringCompiled = hbs.compile(task.config.connectionStringTemplate);
         var connectionString = connectionStringCompiled(routeMatch);   
         var configOptions: ConfigOptions = {
             host: connectionString,
             apiVersion: '5.6'
         };
-        Object.assign(configOptions, config.elasticsearchConfig || { });
+        Object.assign(configOptions, task.config.elasticsearchConfig || { });
 
         var client = new Client(configOptions);
 
-        if (Array.isArray(config.queryTemplates)) {
-            data = await this.multiQuery(client, config.queryTemplates, routeMatch); 
+        if (Array.isArray(task.config.queryTemplates)) {
+            data = await this.multiQuery(client, task, routeMatch); 
         } else {
-            data = await this.singleQuery(client, config.queryTemplates, routeMatch); 
+            data = await this.singleQuery(client, task, routeMatch); 
         }
 
         return data; 
     }
 
-    async singleQuery(client: Client, queryTemplate: IElasticsearchQueryTemplate, routeMatch: IRouteMatch): Promise<ISearchResponse<any>> {
+    async singleQuery(client: Client, task: IRouteTask<IElasticsearchTaskConfig>, routeMatch: IRouteMatch): Promise<ISearchResponse<any>> {
         try {
+            var queryTemplate = task.config.queryTemplates;
             var queryCompiled, queryJson, query;
             
             try {
                 queryCompiled = hbs.compile(queryTemplate.template);
             } catch(err) {
-                var queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
-                throw queryError;
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null, 
+                    data: { queryTemplate: queryTemplate }
+                });
+                throw err;
             }
 
             try {
                 queryJson = queryCompiled(routeMatch);
             } catch(err) {
-                var queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
-                throw queryError;
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null, 
+                    data: { queryTemplate: queryTemplate }
+                });
+                throw err;
             }
 
             try {
                 query = JSON.parse(queryJson);
             } catch(err) {
-                var queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
-                throw queryError;
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null, 
+                    data: { queryTemplate: queryTemplate, queryJson: queryJson }
+                });
+                throw err;
             }
             
             var payload = {
@@ -70,28 +95,48 @@ export class ElasticsearchRouterTask implements IRouterTask {
             try {
                 response = await client.search<any>(payload);
             } catch(err) {
-                var queryError = new ElasticQueryError('Failed to perform search', err, { payload: payload });
+                var queryError = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null, 
+                    data: { payload: payload }
+                });
                 throw queryError;
             }
+
+            if (queryTemplate.noResultsRoute && response.hits.total === 0) {
+                throw new RouteTaskError(new Error('No results'), {
+                    statusCode: 404, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: queryTemplate.noResultsRoute, 
+                    data: { payload: payload }
+                });
+            }
+
             var pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
             response.pagination = pagination;
             response.request = payload;
 
             return response;
         } catch(err) {
-            if (err instanceof ElasticQueryError) {
-                console.error(err);
-                throw err;
-            } else {
-                var queryError = new ElasticQueryError('Someother error in Single Query', err, {});
-                console.error(queryError);
-                throw queryError;
+            if (!(err instanceof RouteTaskError)) {
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null,
+                    data: {}
+                });
             }
+            throw err;
         }
     }
 
-    async multiQuery(client: Client, queryTemplates: IElasticsearchQueryTemplate[], routeMatch: IRouteMatch): Promise<ISearchResponses<any>> {
+    async multiQuery(client: Client, task: IRouteTask<IElasticsearchTaskConfig>, routeMatch: IRouteMatch): Promise<ISearchResponses<any>> {
         try {
+            var queryTemplates = <IElasticsearchQueryTemplate[]>task.config.queryTemplates;
             var bulk = [];
 
             queryTemplates.forEach((queryTemplate) => {
@@ -100,22 +145,40 @@ export class ElasticsearchRouterTask implements IRouterTask {
                 try {
                     queryCompiled = hbs.compile(queryTemplate.template);
                 } catch(err) {
-                    var queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
-                    throw queryError;
+                    err = new RouteTaskError(err, {
+                        statusCode: 500, 
+                        sourceRoute: routeMatch, 
+                        task: task, 
+                        redirectTo: task.errorRoute || null, 
+                        data: { queryTemplate: queryTemplate }
+                    });
+                    throw err;
                 }
 
                 try {
                     queryJson = queryCompiled(routeMatch);
                 } catch(err) {
-                    var queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
-                    throw queryError;
+                    err = new RouteTaskError(err, {
+                        statusCode: 500, 
+                        sourceRoute: routeMatch, 
+                        task: task, 
+                        redirectTo: task.errorRoute || null, 
+                        data: { queryTemplate: queryTemplate }
+                    });
+                    throw err;
                 }
 
                 try {
                     body = JSON.parse(queryJson);
                 } catch(err) {
-                    var queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
-                    throw queryError;
+                    err = new RouteTaskError(err, {
+                        statusCode: 500, 
+                        sourceRoute: routeMatch, 
+                        task: task, 
+                        redirectTo: task.errorRoute || null, 
+                        data: { queryTemplate: queryTemplate, queryJson: queryJson }
+                    });
+                    throw err;
                 }
 
                 head = {
@@ -142,32 +205,50 @@ export class ElasticsearchRouterTask implements IRouterTask {
             try {
                 multiResponse = await client.msearch(payload);
             } catch(err) {
-                var queryError = new ElasticQueryError('Failed to perform search', err, { payload: payload });
-                throw queryError;
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null, 
+                    data: { payload: payload }
+                });
+                throw err;
             }
             var responseMap: ISearchResponses<any> = {};
 
             multiResponse.responses.forEach((response: ISearchResponse<any>, i: number) => {
                 var name = queryTemplates[i].name;
                 var paginationDetails = queryTemplates[i].paginationDetails;
+                var noResultsRoute = queryTemplates[i].noResultsRoute;
 
                 var pagination = this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
                 response.pagination = pagination;
                 response.request = bulk[i*2+1];
 
                 responseMap[name] = response;
+
+                if (noResultsRoute && response.hits.total === 0) {
+                    throw new RouteTaskError(new Error('No results'), {
+                        statusCode: 404, 
+                        sourceRoute: routeMatch, 
+                        task: task, 
+                        redirectTo: noResultsRoute, 
+                        data: { queryTemplate: queryTemplates[i], response: response }
+                    });
+                }
             });
             
             return responseMap;
         } catch(err) {
-            if (err instanceof ElasticQueryError) {
-                console.error(err);
-                throw err;
-            } else {
-                var queryError = new ElasticQueryError('Someother error in Multi Query', err, {});
-                console.error(queryError);
-                throw queryError;
+            if (!(err instanceof RouteTaskError)) {
+                err = new RouteTaskError(err, {
+                    statusCode: 500, 
+                    sourceRoute: routeMatch, 
+                    task: task, 
+                    redirectTo: task.errorRoute || null
+                });
             }
+            throw err;
         }
     }
 
@@ -222,15 +303,6 @@ export class ElasticsearchRouterTask implements IRouterTask {
     }
 }
 
-export class ElasticQueryError extends Error {
-    message: string;
-    constructor(m: string, public innerError: Error, public data: any) {
-        super(m);
-        this.message = m;
-        Object.setPrototypeOf(this, ElasticQueryError.prototype);
-    }
-}
-
 export interface IElasticsearchTaskConfig {
     connectionStringTemplate: string;
     elasticsearchConfig: ConfigOptions;
@@ -243,6 +315,7 @@ export interface IElasticsearchQueryTemplate {
     type: string;
     template: string; 
     paginationDetails?: IPaginationDetails;
+    noResultsRoute?: string;
 }
 
 export interface IHandlebarsHelpers {

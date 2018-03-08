@@ -1,14 +1,4 @@
 "use strict";
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -56,27 +46,27 @@ var ElasticsearchRouterTask = /** @class */ (function () {
             hbs.registerHelper(name, handlebarsHelpers[name]);
         });
     }
-    ElasticsearchRouterTask.prototype.execute = function (routeMatch, config) {
+    ElasticsearchRouterTask.prototype.execute = function (routeMatch, task) {
         return __awaiter(this, void 0, void 0, function () {
             var data, connectionStringCompiled, connectionString, configOptions, client;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         data = {};
-                        connectionStringCompiled = hbs.compile(config.connectionStringTemplate);
+                        connectionStringCompiled = hbs.compile(task.config.connectionStringTemplate);
                         connectionString = connectionStringCompiled(routeMatch);
                         configOptions = {
                             host: connectionString,
                             apiVersion: '5.6'
                         };
-                        Object.assign(configOptions, config.elasticsearchConfig || {});
+                        Object.assign(configOptions, task.config.elasticsearchConfig || {});
                         client = new elasticsearch_1.Client(configOptions);
-                        if (!Array.isArray(config.queryTemplates)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.multiQuery(client, config.queryTemplates, routeMatch)];
+                        if (!Array.isArray(task.config.queryTemplates)) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.multiQuery(client, task, routeMatch)];
                     case 1:
                         data = _a.sent();
                         return [3 /*break*/, 4];
-                    case 2: return [4 /*yield*/, this.singleQuery(client, config.queryTemplates, routeMatch)];
+                    case 2: return [4 /*yield*/, this.singleQuery(client, task, routeMatch)];
                     case 3:
                         data = _a.sent();
                         _a.label = 4;
@@ -85,33 +75,52 @@ var ElasticsearchRouterTask = /** @class */ (function () {
             });
         });
     };
-    ElasticsearchRouterTask.prototype.singleQuery = function (client, queryTemplate, routeMatch) {
+    ElasticsearchRouterTask.prototype.singleQuery = function (client, task, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
-            var queryCompiled, queryJson, query, queryError, queryError, queryError, payload, response, err_1, queryError, pagination, err_2, queryError;
+            var queryTemplate, queryCompiled, queryJson, query, payload, response, err_1, queryError, pagination, err_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 5, , 6]);
+                        queryTemplate = task.config.queryTemplates;
                         try {
                             queryCompiled = hbs.compile(queryTemplate.template);
                         }
                         catch (err) {
-                            queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
-                            throw queryError;
+                            err = new router_1.RouteTaskError(err, {
+                                statusCode: 500,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: task.errorRoute || null,
+                                data: { queryTemplate: queryTemplate }
+                            });
+                            throw err;
                         }
                         try {
                             queryJson = queryCompiled(routeMatch);
                         }
                         catch (err) {
-                            queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
-                            throw queryError;
+                            err = new router_1.RouteTaskError(err, {
+                                statusCode: 500,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: task.errorRoute || null,
+                                data: { queryTemplate: queryTemplate }
+                            });
+                            throw err;
                         }
                         try {
                             query = JSON.parse(queryJson);
                         }
                         catch (err) {
-                            queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
-                            throw queryError;
+                            err = new router_1.RouteTaskError(err, {
+                                statusCode: 500,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: task.errorRoute || null,
+                                data: { queryTemplate: queryTemplate, queryJson: queryJson }
+                            });
+                            throw err;
                         }
                         payload = {
                             index: queryTemplate.index,
@@ -128,38 +137,54 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                         return [3 /*break*/, 4];
                     case 3:
                         err_1 = _a.sent();
-                        queryError = new ElasticQueryError('Failed to perform search', err_1, { payload: payload });
+                        queryError = new router_1.RouteTaskError(err_1, {
+                            statusCode: 500,
+                            sourceRoute: routeMatch,
+                            task: task,
+                            redirectTo: task.errorRoute || null,
+                            data: { payload: payload }
+                        });
                         throw queryError;
                     case 4:
+                        if (queryTemplate.noResultsRoute && response.hits.total === 0) {
+                            throw new router_1.RouteTaskError(new Error('No results'), {
+                                statusCode: 404,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: queryTemplate.noResultsRoute,
+                                data: { payload: payload }
+                            });
+                        }
                         pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
                         response.pagination = pagination;
                         response.request = payload;
                         return [2 /*return*/, response];
                     case 5:
                         err_2 = _a.sent();
-                        if (err_2 instanceof ElasticQueryError) {
-                            console.error(err_2);
-                            throw err_2;
+                        if (!(err_2 instanceof router_1.RouteTaskError)) {
+                            err_2 = new router_1.RouteTaskError(err_2, {
+                                statusCode: 500,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: task.errorRoute || null,
+                                data: {}
+                            });
                         }
-                        else {
-                            queryError = new ElasticQueryError('Someother error in Single Query', err_2, {});
-                            console.error(queryError);
-                            throw queryError;
-                        }
-                        return [3 /*break*/, 6];
+                        throw err_2;
                     case 6: return [2 /*return*/];
                 }
             });
         });
     };
-    ElasticsearchRouterTask.prototype.multiQuery = function (client, queryTemplates, routeMatch) {
+    ElasticsearchRouterTask.prototype.multiQuery = function (client, task, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
-            var bulk, payload, multiResponse, err_3, queryError, responseMap, err_4, queryError;
+            var queryTemplates, bulk, payload, multiResponse, err_3, responseMap, err_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 5, , 6]);
+                        queryTemplates = task.config.queryTemplates;
                         bulk = [];
                         queryTemplates.forEach(function (queryTemplate) {
                             var queryCompiled, queryJson, body, head;
@@ -167,22 +192,40 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                                 queryCompiled = hbs.compile(queryTemplate.template);
                             }
                             catch (err) {
-                                var queryError = new ElasticQueryError('Failed to compile template', err, { queryTemplate: queryTemplate });
-                                throw queryError;
+                                err = new router_1.RouteTaskError(err, {
+                                    statusCode: 500,
+                                    sourceRoute: routeMatch,
+                                    task: task,
+                                    redirectTo: task.errorRoute || null,
+                                    data: { queryTemplate: queryTemplate }
+                                });
+                                throw err;
                             }
                             try {
                                 queryJson = queryCompiled(routeMatch);
                             }
                             catch (err) {
-                                var queryError = new ElasticQueryError('Failed to render template', err, { queryTemplate: queryTemplate });
-                                throw queryError;
+                                err = new router_1.RouteTaskError(err, {
+                                    statusCode: 500,
+                                    sourceRoute: routeMatch,
+                                    task: task,
+                                    redirectTo: task.errorRoute || null,
+                                    data: { queryTemplate: queryTemplate }
+                                });
+                                throw err;
                             }
                             try {
                                 body = JSON.parse(queryJson);
                             }
                             catch (err) {
-                                var queryError = new ElasticQueryError('Failed to parse queryJson', err, { queryTemplate: queryTemplate, queryJson: queryJson });
-                                throw queryError;
+                                err = new router_1.RouteTaskError(err, {
+                                    statusCode: 500,
+                                    sourceRoute: routeMatch,
+                                    task: task,
+                                    redirectTo: task.errorRoute || null,
+                                    data: { queryTemplate: queryTemplate, queryJson: queryJson }
+                                });
+                                throw err;
                             }
                             head = {
                                 index: queryTemplate.index,
@@ -212,31 +255,46 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                         return [3 /*break*/, 4];
                     case 3:
                         err_3 = _a.sent();
-                        queryError = new ElasticQueryError('Failed to perform search', err_3, { payload: payload });
-                        throw queryError;
+                        err_3 = new router_1.RouteTaskError(err_3, {
+                            statusCode: 500,
+                            sourceRoute: routeMatch,
+                            task: task,
+                            redirectTo: task.errorRoute || null,
+                            data: { payload: payload }
+                        });
+                        throw err_3;
                     case 4:
                         responseMap = {};
                         multiResponse.responses.forEach(function (response, i) {
                             var name = queryTemplates[i].name;
                             var paginationDetails = queryTemplates[i].paginationDetails;
+                            var noResultsRoute = queryTemplates[i].noResultsRoute;
                             var pagination = _this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
                             response.pagination = pagination;
                             response.request = bulk[i * 2 + 1];
                             responseMap[name] = response;
+                            if (noResultsRoute && response.hits.total === 0) {
+                                throw new router_1.RouteTaskError(new Error('No results'), {
+                                    statusCode: 404,
+                                    sourceRoute: routeMatch,
+                                    task: task,
+                                    redirectTo: noResultsRoute,
+                                    data: { queryTemplate: queryTemplates[i], response: response }
+                                });
+                            }
                         });
                         return [2 /*return*/, responseMap];
                     case 5:
                         err_4 = _a.sent();
-                        if (err_4 instanceof ElasticQueryError) {
-                            console.error(err_4);
-                            throw err_4;
+                        if (!(err_4 instanceof router_1.RouteTaskError)) {
+                            err_4 = new router_1.RouteTaskError(err_4, {
+                                statusCode: 500,
+                                sourceRoute: routeMatch,
+                                task: task,
+                                redirectTo: task.errorRoute || null
+                            });
                         }
-                        else {
-                            queryError = new ElasticQueryError('Someother error in Multi Query', err_4, {});
-                            console.error(queryError);
-                            throw queryError;
-                        }
-                        return [3 /*break*/, 6];
+                        throw err_4;
                     case 6: return [2 /*return*/];
                 }
             });
@@ -285,17 +343,4 @@ var ElasticsearchRouterTask = /** @class */ (function () {
     return ElasticsearchRouterTask;
 }());
 exports.ElasticsearchRouterTask = ElasticsearchRouterTask;
-var ElasticQueryError = /** @class */ (function (_super) {
-    __extends(ElasticQueryError, _super);
-    function ElasticQueryError(m, innerError, data) {
-        var _this = _super.call(this, m) || this;
-        _this.innerError = innerError;
-        _this.data = data;
-        _this.message = m;
-        Object.setPrototypeOf(_this, ElasticQueryError.prototype);
-        return _this;
-    }
-    return ElasticQueryError;
-}(Error));
-exports.ElasticQueryError = ElasticQueryError;
 //# sourceMappingURL=index.js.map

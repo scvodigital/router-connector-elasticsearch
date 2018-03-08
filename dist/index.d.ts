@@ -1,18 +1,12 @@
 import { Client, SearchResponse, ConfigOptions } from 'elasticsearch';
-import { IRouterTask, IRouteMatch } from '@scvo/router';
+import { IRouterTask, IRouteMatch, IRouteTask } from '@scvo/router';
 export declare class ElasticsearchRouterTask implements IRouterTask {
     name: string;
     constructor(handlebarsHelpers: IHandlebarsHelpers);
-    execute(routeMatch: IRouteMatch, config: IElasticsearchTaskConfig): Promise<any>;
-    singleQuery(client: Client, queryTemplate: IElasticsearchQueryTemplate, routeMatch: IRouteMatch): Promise<ISearchResponse<any>>;
-    multiQuery(client: Client, queryTemplates: IElasticsearchQueryTemplate[], routeMatch: IRouteMatch): Promise<ISearchResponses<any>>;
+    execute(routeMatch: IRouteMatch, task: IRouteTask<IElasticsearchTaskConfig>): Promise<any>;
+    singleQuery(client: Client, task: IRouteTask<IElasticsearchTaskConfig>, routeMatch: IRouteMatch): Promise<ISearchResponse<any>>;
+    multiQuery(client: Client, task: IRouteTask<IElasticsearchTaskConfig>, routeMatch: IRouteMatch): Promise<ISearchResponses<any>>;
     getPagination(from?: number, size?: number, totalResults?: number): IPagination;
-}
-export declare class ElasticQueryError extends Error {
-    innerError: Error;
-    data: any;
-    message: string;
-    constructor(m: string, innerError: Error, data: any);
 }
 export interface IElasticsearchTaskConfig {
     connectionStringTemplate: string;
@@ -25,6 +19,7 @@ export interface IElasticsearchQueryTemplate {
     type: string;
     template: string;
     paginationDetails?: IPaginationDetails;
+    noResultsRoute?: string;
 }
 export interface IHandlebarsHelpers {
     [name: string]: (...args: any[]) => any;
