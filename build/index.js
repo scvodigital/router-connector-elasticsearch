@@ -1,4 +1,14 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -35,16 +45,20 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+/* tslint:disable:no-any */
 var elasticsearch_1 = require("elasticsearch");
 var hbs = require('clayhandlebars')();
 var router_1 = require("@scvo/router");
-var ElasticsearchRouterTask = /** @class */ (function () {
+var ElasticsearchRouterTask = /** @class */ (function (_super) {
+    __extends(ElasticsearchRouterTask, _super);
     function ElasticsearchRouterTask(handlebarsHelpers) {
-        this.name = "elasticsearch";
+        var _this = _super.call(this) || this;
+        _this.name = 'elasticsearch';
         router_1.Helpers.register(hbs);
         Object.keys(handlebarsHelpers).forEach(function (name) {
             hbs.registerHelper(name, handlebarsHelpers[name]);
         });
+        return _this;
     }
     ElasticsearchRouterTask.prototype.execute = function (routeMatch, task) {
         return __awaiter(this, void 0, void 0, function () {
@@ -55,10 +69,7 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                         data = {};
                         connectionStringCompiled = hbs.compile(task.config.connectionStringTemplate);
                         connectionString = connectionStringCompiled(routeMatch);
-                        configOptions = {
-                            host: connectionString,
-                            apiVersion: '5.6'
-                        };
+                        configOptions = { host: connectionString, apiVersion: '5.6' };
                         Object.assign(configOptions, task.config.elasticsearchConfig || {});
                         client = new elasticsearch_1.Client(configOptions);
                         if (!Array.isArray(task.config.queryTemplates)) return [3 /*break*/, 2];
@@ -83,6 +94,7 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                     case 0:
                         _a.trys.push([0, 5, , 6]);
                         queryTemplate = task.config.queryTemplates;
+                        queryCompiled = void 0, queryJson = void 0, query = void 0;
                         try {
                             queryCompiled = hbs.compile(queryTemplate.template);
                         }
@@ -179,14 +191,14 @@ var ElasticsearchRouterTask = /** @class */ (function () {
     ElasticsearchRouterTask.prototype.multiQuery = function (client, task, routeMatch) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
-            var queryTemplates, bulk, payload, multiResponse, err_3, responseMap, err_4;
+            var queryTemplates_1, bulk_1, payload, multiResponse, err_3, responseMap_1, err_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 5, , 6]);
-                        queryTemplates = task.config.queryTemplates;
-                        bulk = [];
-                        queryTemplates.forEach(function (queryTemplate) {
+                        queryTemplates_1 = task.config.queryTemplates;
+                        bulk_1 = [];
+                        queryTemplates_1.forEach(function (queryTemplate) {
                             var queryCompiled, queryJson, body, head;
                             try {
                                 queryCompiled = hbs.compile(queryTemplate.template);
@@ -227,25 +239,14 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                                 });
                                 throw err;
                             }
-                            head = {
-                                index: queryTemplate.index,
-                                type: queryTemplate.type
-                            };
-                            var paginationDetails = {
-                                from: body.from || 0,
-                                size: body.size || 10
-                            };
-                            bulk.push(head);
-                            bulk.push(body);
-                            queryTemplate.paginationDetails = {
-                                from: body.from,
-                                size: body.size
-                            };
+                            head = { index: queryTemplate.index, type: queryTemplate.type };
+                            var paginationDetails = { from: body.from || 0, size: body.size || 10 };
+                            bulk_1.push(head);
+                            bulk_1.push(body);
+                            queryTemplate.paginationDetails = { from: body.from, size: body.size };
                         });
-                        payload = {
-                            body: bulk
-                        };
-                        multiResponse = null;
+                        payload = { body: bulk_1 };
+                        multiResponse = { responses: [] };
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 3, , 4]);
@@ -264,26 +265,29 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                         });
                         throw err_3;
                     case 4:
-                        responseMap = {};
+                        responseMap_1 = {};
+                        if (!multiResponse.responses) {
+                            return [2 /*return*/, {}];
+                        }
                         multiResponse.responses.forEach(function (response, i) {
-                            var name = queryTemplates[i].name;
-                            var paginationDetails = queryTemplates[i].paginationDetails;
-                            var noResultsRoute = queryTemplates[i].noResultsRoute;
+                            var name = queryTemplates_1[i].name;
+                            var paginationDetails = queryTemplates_1[i].paginationDetails || { from: 0, size: 10 };
+                            var noResultsRoute = queryTemplates_1[i].noResultsRoute;
                             var pagination = _this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
                             response.pagination = pagination;
-                            response.request = bulk[i * 2 + 1];
-                            responseMap[name] = response;
+                            response.request = bulk_1[i * 2 + 1];
+                            responseMap_1[name] = response;
                             if (noResultsRoute && response.hits.total === 0) {
                                 throw new router_1.RouteTaskError(new Error('No results'), {
                                     statusCode: 404,
                                     sourceRoute: routeMatch,
                                     task: task,
                                     redirectTo: noResultsRoute,
-                                    data: { queryTemplate: queryTemplates[i], response: response }
+                                    data: { queryTemplate: queryTemplates_1[i], response: response }
                                 });
                             }
                         });
-                        return [2 /*return*/, responseMap];
+                        return [2 /*return*/, responseMap_1];
                     case 5:
                         err_4 = _a.sent();
                         if (!(err_4 instanceof router_1.RouteTaskError)) {
@@ -291,7 +295,8 @@ var ElasticsearchRouterTask = /** @class */ (function () {
                                 statusCode: 500,
                                 sourceRoute: routeMatch,
                                 task: task,
-                                redirectTo: task.errorRoute || null
+                                redirectTo: task.errorRoute || null,
+                                data: {}
                             });
                         }
                         throw err_4;
@@ -314,7 +319,8 @@ var ElasticsearchRouterTask = /** @class */ (function () {
         var rangeMin = pageRange[0];
         var positiveShift = rangeMin < 1 ? 1 - rangeMin : 0;
         pageRange = pageRange.map(function (p) { return p + positiveShift; });
-        // Move range backwards until none of the numbers are greater than totalPages
+        // Move range backwards until none of the numbers are greater than
+        // totalPages
         var rangeMax = pageRange[pageRange.length - 1];
         var negativeShift = rangeMax > totalPages ? rangeMax - totalPages : 0;
         pageRange = pageRange.map(function (p) { return p - negativeShift; });
@@ -322,10 +328,9 @@ var ElasticsearchRouterTask = /** @class */ (function () {
         pageRange = pageRange.filter(function (p) { return p >= 1 && p <= totalPages; });
         var pages = [];
         pageRange.forEach(function (page) {
-            var distance = Math.abs(currentPage - page);
             pages.push({
                 pageNumber: Math.floor(page),
-                distance: distance,
+                distance: Math.abs(currentPage - page),
             });
         });
         var pagination = {
@@ -341,6 +346,7 @@ var ElasticsearchRouterTask = /** @class */ (function () {
         return pagination;
     };
     return ElasticsearchRouterTask;
-}());
+}(router_1.RouterTask));
 exports.ElasticsearchRouterTask = ElasticsearchRouterTask;
+/* tslint:enable:no-any */
 //# sourceMappingURL=index.js.map
