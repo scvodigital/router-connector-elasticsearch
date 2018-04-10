@@ -104,7 +104,8 @@ export class ElasticsearchRouterTask extends RouterTask {
         throw queryError;
       }
 
-      if (queryTemplate.noResultsRoute && response.hits.total === 0) {
+      if (queryTemplate.noResultsRoute && (!response.hits || !response.hits.total)) {
+        console.log('No results route for response:', response);
         throw new RouteTaskError(new Error('No results'), {
           statusCode: 404,
           sourceRoute: routeMatch,
@@ -112,6 +113,13 @@ export class ElasticsearchRouterTask extends RouterTask {
           redirectTo: queryTemplate.noResultsRoute,
           data: {payload}
         });
+      } else if (!response.hits || !response.hits.total) {
+        console.log('No no results route for response', response);
+        response.hits = {
+          max_score: 0,
+          hits: [],
+          total: 0
+        };
       }
 
       const pagination = this.getPagination(
@@ -220,15 +228,10 @@ export class ElasticsearchRouterTask extends RouterTask {
                 queryTemplates[i].paginationDetails || {from: 0, size: 10};
             const noResultsRoute = queryTemplates[i].noResultsRoute;
 
-            const pagination = this.getPagination(
-                paginationDetails.from, paginationDetails.size,
-                response.hits.total);
-            response.pagination = pagination;
-            response.request = bulk[i * 2 + 1];
-
             responseMap[name] = response;
 
-            if (noResultsRoute && response.hits.total === 0) {
+            if (noResultsRoute && (!response.hits || !response.hits.total)) {
+              console.log('No results route for response', response);
               throw new RouteTaskError(new Error('No results'), {
                 statusCode: 404,
                 sourceRoute: routeMatch,
@@ -236,7 +239,20 @@ export class ElasticsearchRouterTask extends RouterTask {
                 redirectTo: noResultsRoute,
                 data: {queryTemplate: queryTemplates[i], response}
               });
+            } else if (!response.hits || !response.hits.total) {
+              console.log('No no results route for response', response);
+              response.hits = {
+                max_score: 0,
+                hits: [],
+                total: 0
+              };
             }
+
+            const pagination = this.getPagination(
+                paginationDetails.from, paginationDetails.size,
+                response.hits.total);
+            response.pagination = pagination;
+            response.request = bulk[i * 2 + 1];
           });
       return responseMap;
     } catch (err) {
