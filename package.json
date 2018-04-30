@@ -1,6 +1,6 @@
 {
   "name": "@scvo/router-task-elasticsearch",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "SCVO=>Router task for Elasticsearch",
   "main": "./build/index",
   "typings": "./build/index",
@@ -16,7 +16,8 @@
     "fix": "gts fix",
     "prepare": "npm run compile",
     "pretest": "npm run compile",
-    "posttest": "npm run check"
+    "posttest": "npm run check",
+    "pub-patch": "yarn add -E @scvo/router; git commit -a -m \"Upgraded router\"; nuup patch"
   },
   "repository": {
     "type": "git",
@@ -36,7 +37,7 @@
   },
   "homepage": "https://github.com/scvodigital/router-task-elasticsearch#readme",
   "dependencies": {
-    "@scvo/router": "1.1.7",
+    "@scvo/router": "1.1.26",
     "clayhandlebars": "^4.0.0",
     "dot-object": "^1.7.0",
     "elasticsearch": "^14.1.0",

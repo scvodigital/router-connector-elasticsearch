@@ -114,7 +114,7 @@ export class ElasticsearchRouterTask extends RouterTask {
           data: {payload}
         });
       } else if (!response.hits || !response.hits.total) {
-        console.log('No no results route for response', response);
+        console.log('No no results route for response', JSON.stringify(response, null, 4));
         response.hits = {
           max_score: 0,
           hits: [],
@@ -240,7 +240,7 @@ export class ElasticsearchRouterTask extends RouterTask {
                 data: {queryTemplate: queryTemplates[i], response}
               });
             } else if (!response.hits || !response.hits.total) {
-              console.log('No no results route for response', response);
+              console.log('No no results route for response', JSON.stringify(response, null, 4));
               response.hits = {
                 max_score: 0,
                 hits: [],

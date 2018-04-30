@@ -158,7 +158,8 @@ var ElasticsearchRouterTask = /** @class */ (function (_super) {
                         });
                         throw queryError;
                     case 4:
-                        if (queryTemplate.noResultsRoute && response.hits.total === 0) {
+                        if (queryTemplate.noResultsRoute && (!response.hits || !response.hits.total)) {
+                            console.log('No results route for response:', response);
                             throw new router_1.RouteTaskError(new Error('No results'), {
                                 statusCode: 404,
                                 sourceRoute: routeMatch,
@@ -166,6 +167,14 @@ var ElasticsearchRouterTask = /** @class */ (function (_super) {
                                 redirectTo: queryTemplate.noResultsRoute,
                                 data: { payload: payload }
                             });
+                        }
+                        else if (!response.hits || !response.hits.total) {
+                            console.log('No no results route for response', JSON.stringify(response, null, 4));
+                            response.hits = {
+                                max_score: 0,
+                                hits: [],
+                                total: 0
+                            };
                         }
                         pagination = this.getPagination(query.from || 0, query.size || 10, response.hits.total);
                         response.pagination = pagination;
@@ -273,11 +282,9 @@ var ElasticsearchRouterTask = /** @class */ (function (_super) {
                             var name = queryTemplates_1[i].name;
                             var paginationDetails = queryTemplates_1[i].paginationDetails || { from: 0, size: 10 };
                             var noResultsRoute = queryTemplates_1[i].noResultsRoute;
-                            var pagination = _this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
-                            response.pagination = pagination;
-                            response.request = bulk_1[i * 2 + 1];
                             responseMap_1[name] = response;
-                            if (noResultsRoute && response.hits.total === 0) {
+                            if (noResultsRoute && (!response.hits || !response.hits.total)) {
+                                console.log('No results route for response', response);
                                 throw new router_1.RouteTaskError(new Error('No results'), {
                                     statusCode: 404,
                                     sourceRoute: routeMatch,
@@ -286,6 +293,17 @@ var ElasticsearchRouterTask = /** @class */ (function (_super) {
                                     data: { queryTemplate: queryTemplates_1[i], response: response }
                                 });
                             }
+                            else if (!response.hits || !response.hits.total) {
+                                console.log('No no results route for response', JSON.stringify(response, null, 4));
+                                response.hits = {
+                                    max_score: 0,
+                                    hits: [],
+                                    total: 0
+                                };
+                            }
+                            var pagination = _this.getPagination(paginationDetails.from, paginationDetails.size, response.hits.total);
+                            response.pagination = pagination;
+                            response.request = bulk_1[i * 2 + 1];
                         });
                         return [2 /*return*/, responseMap_1];
                     case 5:
