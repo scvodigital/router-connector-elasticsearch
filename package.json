@@ -1,6 +1,6 @@
 {
   "name": "@scvo/router-task-elasticsearch",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "SCVO=>Router task for Elasticsearch",
   "main": "./build/index",
   "typings": "./build/index",
